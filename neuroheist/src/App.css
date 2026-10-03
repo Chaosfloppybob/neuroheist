@@ -28,9 +28,11 @@
   color: #fff;
   border: none;
   border-radius: 999px;
-  padding: 12px 28px;
+  padding: 18px 24px;
   font-size: 16px;
   cursor: pointer;
+  box-sizing: border-box;
+  margin-top: 24px;
 }
 
 .upload__button:disabled {
@@ -52,6 +54,9 @@
 
  
 }
+*{
+  box-sizing: border-box
+}
 
 body{
   font-family: 'Inter', sans-serif;
@@ -62,6 +67,7 @@ body{
     radial-gradient(circle at 70% 60%, rgba(169, 85, 247, 0.81), transparent 45%),
     #0b0b14;
 }
+
 .panel{
   display: flex;
   flex-direction: column;
@@ -70,4 +76,9 @@ body{
   margin-top: 40px;
   justify-content: center;
   align-items: center;
+  margin: 0 auto
+}
+.app{
+  align-items: center;
+  justify-content: center;
 }

@@ -1,0 +1,70 @@
+.results {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.results__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+/* Three columns: narrow controls | wide viewer | medium side panel */
+.results__grid {
+  display: grid;
+  grid-template-columns: 240px 1fr 340px;
+  gap: 20px;
+  height: calc(100vh - 160px); /* fills the screen below the header; adjust to taste */
+  min-height: 500px;
+}
+
+.results__controls,
+.results__viewer,
+.results__stats,
+.results__chat {
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.results__viewer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stacks stats and chat vertically in the right column */
+.results__side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0; /* lets the children scroll instead of stretching the grid */
+}
+
+.results__stats {
+  flex: 1;
+  overflow: auto;
+}
+
+.results__chat {
+  flex: 1.4;
+}
+
+.results__stats pre {
+  font-size: 12px;
+  white-space: pre-wrap;
+  opacity: 0.7;
+}
+
+/* On narrow screens, stack the columns */
+@media (max-width: 900px) {
+  .results__grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .results__viewer {
+    min-height: 400px;
+  }
+}
