@@ -1,14 +1,20 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import ScanUpload from "./components/ScanUpload";
+
+
 import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
-    <h1>brain stuff here</h1>
+    <div className = "glass panel">
+      
+       <h1>Brain scan analysis</h1>
+      <p>some of the stuff</p>
+      <ScanUpload onResult={(data) => console.log("Backend returned:", data)} />
+    </div>
+
   );
 }
 
