@@ -10,6 +10,7 @@ export default function BrainViewer({ file, maskUrl }) {
   const canvasRef = useRef(null);
   const nvRef = useRef(null); // the NiiVue instance
   const readyRef = useRef(null); // resolves once NiiVue is attached to the canvas
+  const loadIdRef = useRef(0); // increases with every load; used to skip outdated loads
   const [status, setStatus] = useState("loading"); // loading | ready | error
 
   // Create the viewer once
@@ -30,10 +31,16 @@ export default function BrainViewer({ file, maskUrl }) {
 
   // Load the scan + tumor mask (re-runs if either changes)
   useEffect(() => {
-    let cancelled = false;
+    // In development, React StrictMode runs this effect twice in a row. Two overlapping
+    // loadVolumes calls on the same viewer can scramble each other (the tumor layer gets
+    // lost), so each run gets an id and only the newest one is allowed to load.
+    const loadId = ++loadIdRef.current;
+    const isOutdated = () => loadId !== loadIdRef.current;
 
     async function load() {
       setStatus("loading");
+      await readyRef.current;
+      if (isOutdated()) return; // a newer load already started; let that one do the work
 
       // An uploaded File becomes a temporary URL NiiVue can read.
       // The name matters: NiiVue checks the .nii / .nii.gz extension to know the format.
@@ -56,21 +63,17 @@ export default function BrainViewer({ file, maskUrl }) {
       }
 
       try {
-        await readyRef.current;
         await nvRef.current.loadVolumes(volumes); // replaces any previous scan
-        if (!cancelled) setStatus("ready");
+        if (!isOutdated()) setStatus("ready");
       } catch (err) {
         console.error("BrainViewer failed to load scan:", err);
-        if (!cancelled) setStatus("error");
+        if (!isOutdated()) setStatus("error");
       } finally {
         if (file) URL.revokeObjectURL(url); // free the temporary URL
       }
     }
 
     load();
-    return () => {
-      cancelled = true;
-    };
   }, [file, maskUrl]);
 
   return (
