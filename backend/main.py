@@ -1,5 +1,4 @@
 import os
-import shutil
 import tempfile
 
 from fastapi import FastAPI, File, UploadFile
@@ -20,9 +19,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",
-        "https://neuroheist-git-main-steawins-projects.vercel.app",
-        "https://neuroheist.select"
+        "http://localhost:5173"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -37,7 +34,7 @@ def create_treatment_mask(reduction_percent):
     )
 
     nii = nib.load(original_path)
-    mask = np.asarray(nii.dataobj).astype(np.uint8)
+    mask = nii.get_fdata().astype(np.uint8)
 
     tumor_coords = np.argwhere(mask > 0)
 
@@ -101,39 +98,57 @@ def root():
     return {
         "message": "NeuroHeist backend is running"
     }
+
 @app.post("/upload")
-def upload_scan(file: UploadFile = File(...)):
-    filename = (file.filename or "").lower()
+async def upload_scan(
+    file: UploadFile = File(...)
+):
+    # Make sure the uploaded file is NIfTI.
+    filename = file.filename.lower()
 
-    if not (filename.endswith(".nii") or filename.endswith(".nii.gz")):
-        return {"error": "Only .nii and .nii.gz files are supported."}
+    if not (
+        filename.endswith(".nii")
+        or filename.endswith(".nii.gz")
+    ):
+        return {
+            "error": "Only .nii and .nii.gz files are supported."
+        }
 
+    # Save uploaded file temporarily.
     suffix = ".nii.gz" if filename.endswith(".nii.gz") else ".nii"
 
-    # Copy the upload to disk in chunks instead of holding it all in RAM
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as input_file:
-        shutil.copyfileobj(file.file, input_file)
-        input_path = input_file.name
+    input_file = tempfile.NamedTemporaryFile(
+        suffix=suffix,
+        delete=False
+    )
+
+    input_path = input_file.name
 
     try:
-        print("MRI uploaded:", filename, flush=True)
+        contents = await file.read()
+
+        input_file.write(contents)
+        input_file.close()
+
+        # Run the actual AI segmentation.
         mask_path = segment_brain(input_path)
-        print("Segmentation complete:", mask_path, flush=True)
 
         return {
             "message": "Scan segmented successfully.",
-            "tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}",
+            "tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}"
         }
 
     except Exception as error:
-        print("SEGMENTATION ERROR:", error, flush=True)
-        return {"error": str(error)}
+        input_file.close()
 
-    finally:
-        try:
-            os.remove(input_path)
-        except OSError:
-            pass
+        print("SEGMENTATION ERROR:")
+        print(error)
+
+        return {
+            "error": str(error)
+        }
+
+
 @app.get("/tumor-mask/{filename}")
 def get_tumor_mask(filename: str):
     path = os.path.join(
