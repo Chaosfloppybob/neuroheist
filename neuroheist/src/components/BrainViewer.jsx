@@ -6,7 +6,7 @@ import "./BrainViewer.css";
 const SAMPLE_URL = "/mni152.nii.gz";
 const SAMPLE_NAME = "mni152.nii.gz";
 
-export default function BrainViewer({ file }) {
+export default function BrainViewer({ file, maskUrl }) {
   const canvasRef = useRef(null);
   const nvRef = useRef(null); // the NiiVue instance
   const readyRef = useRef(null); // resolves once NiiVue is attached to the canvas
@@ -28,7 +28,7 @@ export default function BrainViewer({ file }) {
     });
   }, []);
 
-  // Load the scan (re-runs if a different file is passed in)
+  // Load the scan + tumor mask (re-runs if either changes)
   useEffect(() => {
     let cancelled = false;
 
@@ -40,9 +40,24 @@ export default function BrainViewer({ file }) {
       const url = file ? URL.createObjectURL(file) : SAMPLE_URL;
       const name = file ? file.name : SAMPLE_NAME;
 
+      const volumes = [{ url, name }]; // first volume = the brain
+
+      // Second volume = the tumor mask from the backend, drawn on top in red.
+      // cal_min 0.5 hides the 0 (no tumor) voxels so only the tumor is colored.
+      if (maskUrl) {
+        volumes.push({
+          url: maskUrl,
+          name: maskUrl.split("/").pop().split("?")[0] || "tumor_mask.nii.gz",
+          colormap: "red",
+          opacity: 0.85,
+          cal_min: 0.5,
+          cal_max: 1,
+        });
+      }
+
       try {
         await readyRef.current;
-        await nvRef.current.loadVolumes([{ url, name }]); // replaces any previous scan
+        await nvRef.current.loadVolumes(volumes); // replaces any previous scan
         if (!cancelled) setStatus("ready");
       } catch (err) {
         console.error("BrainViewer failed to load scan:", err);
@@ -56,7 +71,7 @@ export default function BrainViewer({ file }) {
     return () => {
       cancelled = true;
     };
-  }, [file]);
+  }, [file, maskUrl]);
 
   return (
     <div className="brain-viewer">

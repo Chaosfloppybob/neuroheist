@@ -1,7 +1,12 @@
+import { useState } from "react";
 import BrainViewer from "./BrainViewer";
+import TreatmentPanel from "./TreatmentPanel";
 import "./ResultsView.css";
 
 export default function ResultsView({ result, file, onNewScan }) {
+  // Holds { reductionPercent, summary, sources } after a treatment is simulated
+  const [treatmentResult, setTreatmentResult] = useState(null);
+
   return (
     <div className="results">
       <header className="results__header">
@@ -21,10 +26,15 @@ export default function ResultsView({ result, file, onNewScan }) {
 
         {/* Center column: the 3D viewer */}
         <div className="glass results__viewer">
-          <BrainViewer file={file} />
+          {/* reductionPercent isn't used by the viewer yet; it's for the shrink slider later */}
+          <BrainViewer
+            file={file}
+            maskUrl={result?.maskUrl}
+            reductionPercent={treatmentResult?.reductionPercent}
+          />
         </div>
 
-        {/* Right column: stats on top, chat below */}
+        {/* Right column: stats on top, treatment simulation below */}
         <div className="results__side">
           <section className="glass results__stats">
             <h2>Findings</h2>
@@ -33,8 +43,7 @@ export default function ResultsView({ result, file, onNewScan }) {
           </section>
 
           <section className="glass results__chat">
-            <h2>Ask about this scan</h2>
-            <p>Chat goes here</p>
+            <TreatmentPanel scanResult={result} onResult={setTreatmentResult} />
           </section>
         </div>
       </div>
