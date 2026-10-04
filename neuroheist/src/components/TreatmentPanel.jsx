@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import "./TreatmentPanel.css";
 
 // ---- Config: change these to match your backend ----
-const API_URL = "http://localhost:8000/simulate"; // backend treatment endpoint
+const API_URL = "https://neuroheist-backend.onrender.com/simulate";
 const USE_MOCK = false; // set to false once the backend endpoint is running
 
 const TREATMENTS = [
@@ -99,7 +99,7 @@ export default function TreatmentPanel({ scanResult, onResult }) {
           throw new Error(data.error);
         }
         if (data.maskUrl && data.maskUrl.startsWith("/")) {
-          data.maskUrl = `http://localhost:8000${data.maskUrl}`;
+          data.maskUrl = `https://neuroheist-backend.onrender.com${data.maskUrl}`;
         }
       }
 
