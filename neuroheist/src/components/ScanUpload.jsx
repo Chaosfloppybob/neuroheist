@@ -127,7 +127,9 @@ export default function ScanUpload({ onResult }) {
         if (result.error) {
           throw new Error(result.error);
         }
-        result.maskUrl = `https://neuroheist-backend.onrender.com${result.tumor_mask}`;
+        if (result.tumor_mask) {
+          result.maskUrl = `https://neuroheist-backend.onrender.com${result.tumor_mask}`;
+        }
       }
 
       setStatus("done");
