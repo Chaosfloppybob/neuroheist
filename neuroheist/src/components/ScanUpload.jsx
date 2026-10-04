@@ -15,7 +15,7 @@ const API_URL = "http://localhost:8000/upload"; // backend upload endpoint
 const FIELD_NAME = "file"; // must match the field name the backend reads
 const ACCEPTED_EXTENSIONS = [".nii", ".nii.gz"];
 const MAX_SIZE_MB = 200;
-const USE_MOCK = true; // set to false once the backend endpoint is running
+const USE_MOCK = false; // set to false once the backend endpoint is running
 
 function hasValidExtension(name) {
   const lower = name.toLowerCase();

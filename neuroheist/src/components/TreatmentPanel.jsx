@@ -3,7 +3,7 @@ import "./TreatmentPanel.css";
 
 // ---- Config: change these to match your backend ----
 const API_URL = "http://localhost:8000/simulate"; // backend treatment endpoint
-const USE_MOCK = true; // set to false once the backend endpoint is running
+const USE_MOCK = false; // set to false once the backend endpoint is running
 
 const TREATMENTS = [
   {
