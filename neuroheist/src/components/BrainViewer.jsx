@@ -6,7 +6,7 @@ import "./BrainViewer.css";
 const SAMPLE_URL = "/mni152.nii.gz";
 const SAMPLE_NAME = "mni152.nii.gz";
 
-export default function BrainViewer({ file, maskUrl }) {
+export default function BrainViewer({ file, maskUrl, brainOpacity = 1, tumorOpacity = 0.85 }) {
   const canvasRef = useRef(null);
   const nvRef = useRef(null); // the NiiVue instance
   const readyRef = useRef(null); // resolves once NiiVue is attached to the canvas
@@ -75,6 +75,15 @@ export default function BrainViewer({ file, maskUrl }) {
 
     load();
   }, [file, maskUrl]);
+
+  // Apply the Layers panel settings. Re-runs when a slider/toggle changes,
+  // and again after each load finishes (status becomes "ready").
+  useEffect(() => {
+    const nv = nvRef.current;
+    if (status !== "ready" || !nv || nv.volumes.length === 0) return;
+    nv.setOpacity(0, brainOpacity); // volume 0 = brain
+    if (nv.volumes.length > 1) nv.setOpacity(1, tumorOpacity); // volume 1 = tumor
+  }, [brainOpacity, tumorOpacity, status]);
 
   return (
     <div className="brain-viewer">

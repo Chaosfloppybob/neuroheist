@@ -1,11 +1,18 @@
 import { useState } from "react";
 import BrainViewer from "./BrainViewer";
+import LayerControls from "./LayerControls";
 import TreatmentPanel from "./TreatmentPanel";
 import "./ResultsView.css";
 
 export default function ResultsView({ result, file, onNewScan }) {
   // Holds { reductionPercent, summary, sources } after a treatment is simulated
   const [treatmentResult, setTreatmentResult] = useState(null);
+
+  // Visibility + opacity for each 3D layer (controlled from the Layers panel)
+  const [layers, setLayers] = useState({
+    brain: { visible: true, opacity: 1 },
+    tumor: { visible: true, opacity: 0.85 },
+  });
 
   return (
     <div className="results">
@@ -18,10 +25,13 @@ export default function ResultsView({ result, file, onNewScan }) {
       </header>
 
       <div className="results__grid">
-        {/* Left column: tumor region toggles + opacity slider */}
+        {/* Left column: layer toggles + opacity sliders */}
         <aside className="glass results__controls">
-          <h2>Layers</h2>
-          <p>Layer controls go here</p>
+          <LayerControls
+            layers={layers}
+            onChange={setLayers}
+            hasTumor={Boolean(result?.maskUrl)}
+          />
         </aside>
 
         {/* Center column: the 3D viewer */}
@@ -31,6 +41,8 @@ export default function ResultsView({ result, file, onNewScan }) {
             file={file}
             maskUrl={result?.maskUrl}
             reductionPercent={treatmentResult?.reductionPercent}
+            brainOpacity={layers.brain.visible ? layers.brain.opacity : 0}
+            tumorOpacity={layers.tumor.visible ? layers.tumor.opacity : 0}
           />
         </div>
 
