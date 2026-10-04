@@ -1,5 +1,5 @@
 import os
-
+import urllib.request
 import nibabel as nib
 import numpy as np
 import torch
@@ -15,6 +15,21 @@ MODEL_PATH = os.path.join(
     os.path.dirname(__file__),
     "brats_mri_segmentation.pth"
 )
+
+MODEL_URL = os.getenv("MODEL_URL")
+
+if not os.path.exists(MODEL_PATH):
+    if not MODEL_URL:
+        raise RuntimeError(
+            "Model file not found and MODEL_URL is not configured."
+        )
+
+    print("Downloading segmentation model...")
+    urllib.request.urlretrieve(
+        MODEL_URL,
+        MODEL_PATH
+    )
+    print("Model download complete.")
 
 device = torch.device("cpu")
 
