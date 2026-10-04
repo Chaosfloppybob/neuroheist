@@ -3,7 +3,7 @@ from monai.networks.nets import SegResNet
 
 def create_model():
     model = SegResNet(
-        blocks_down = (1, 2, 2, 4),
+        blocks_down=(1, 2, 2, 4),
         blocks_up = (1, 1, 1),
         init_filters = 16,
         in_channels = 4,
