@@ -137,8 +137,8 @@ async def upload_scan(
             "message": "Upload reached FastAPI successfully"
         }
         ##return {
-            "message": "Scan segmented successfully.",
-            "tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}"
+            ##"message": "Scan segmented successfully.",
+            ##"tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}"
         ##}
 
     except Exception as error:
