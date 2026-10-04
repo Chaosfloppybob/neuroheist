@@ -1,11 +1,12 @@
---extra-index-url https://download.pytorch.org/whl/cpu
+fastapi
+uvicorn[standard]
+python-multipart
+numpy
+nibabel
 torch
 monai
-nibabel
-numpy
-fastapi
-uvicorn
-python-multipart
+scikit-image
+trimesh
 python-dotenv
 tavily-python
 groq

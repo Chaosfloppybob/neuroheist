@@ -60,7 +60,7 @@ export default function BrainViewer({ file, maskUrl, brainOpacity = 1, tumorOpac
         volumes.push({
           url: maskUrl,
           name: maskUrl.split("/").pop().split("?")[0] || "tumor_mask.nii.gz",
-          colormap: "red",
+          colormap: "violet",
           opacity: 0.8,
           cal_min: 0.5,
           cal_max: 1,
