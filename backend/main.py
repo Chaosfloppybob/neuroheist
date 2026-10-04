@@ -5,7 +5,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from inference import segment_brain
+# from inference import segment_brain
 import re
 import nibabel as nib
 import numpy as np
@@ -132,12 +132,14 @@ async def upload_scan(
         input_file.close()
 
         # Run the actual AI segmentation.
-        mask_path = segment_brain(input_path)
-
-        return {
+        # mask_path = segment_braininput_path
+        return{
+            "message": "Upload reached FastAPI successfully"
+        }
+        ##return {
             "message": "Scan segmented successfully.",
             "tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}"
-        }
+        ##}
 
     except Exception as error:
         input_file.close()
