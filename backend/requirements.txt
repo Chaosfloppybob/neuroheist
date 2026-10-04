@@ -8,6 +8,6 @@ monai
 scikit-image
 trimesh
 groq
-google-generativeai
+google-genai
 tavily-python
 python-dotenv
