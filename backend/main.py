@@ -1,0 +1,224 @@
+import os
+import shutil
+import tempfile
+
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+
+from inference import segment_brain
+import re
+import nibabel as nib
+import numpy as np
+
+from research_sources import research_topic
+
+
+app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "https://neuroheist-git-main-steawins-projects.vercel.app",
+        "https://neuroheist.select"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+def create_treatment_mask(reduction_percent):
+    original_path = os.path.join(
+        os.path.dirname(__file__),
+        "outputs",
+        "tumor_mask.nii.gz"
+    )
+
+    nii = nib.load(original_path)
+    mask = np.asarray(nii.dataobj).astype(np.uint8)
+
+    tumor_coords = np.argwhere(mask > 0)
+
+    if len(tumor_coords) == 0:
+        raise ValueError("No tumor was found in the segmentation.")
+
+    # Convert percentage reduction in volume
+    # into a 3D linear scaling factor.
+    remaining_volume = 1 - (reduction_percent / 100)
+
+    scale = remaining_volume ** (1 / 3)
+
+    # Center of the tumor.
+    center = tumor_coords.mean(axis=0)
+
+    # Move tumor voxels toward the center.
+    scaled_coords = (
+        center + (tumor_coords - center) * scale
+    )
+
+    scaled_coords = np.rint(scaled_coords).astype(int)
+
+    # Keep coordinates inside the MRI dimensions.
+    for axis in range(3):
+        scaled_coords[:, axis] = np.clip(
+            scaled_coords[:, axis],
+            0,
+            mask.shape[axis] - 1
+        )
+
+    treatment_mask = np.zeros_like(mask)
+
+    # Preserve the tumor's label.
+    labels = mask[
+        tumor_coords[:, 0],
+        tumor_coords[:, 1],
+        tumor_coords[:, 2]
+    ]
+
+    treatment_mask[
+        scaled_coords[:, 0],
+        scaled_coords[:, 1],
+        scaled_coords[:, 2]
+    ] = labels
+
+    output_path = os.path.join(
+        os.path.dirname(__file__),
+        "outputs",
+        "treatment_mask.nii.gz"
+    )
+
+    output_nii = nib.Nifti1Image(
+        treatment_mask,
+        nii.affine
+    )
+    nib.save(output_nii, output_path)
+    return output_path
+
+@app.get("/")
+def root():
+    return {
+        "message": "NeuroHeist backend is running"
+    }
+@app.post("/upload")
+def upload_scan(file: UploadFile = File(...)):
+    filename = (file.filename or "").lower()
+
+    if not (filename.endswith(".nii") or filename.endswith(".nii.gz")):
+        return {"error": "Only .nii and .nii.gz files are supported."}
+
+    suffix = ".nii.gz" if filename.endswith(".nii.gz") else ".nii"
+
+    # Copy the upload to disk in chunks instead of holding it all in RAM
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as input_file:
+        shutil.copyfileobj(file.file, input_file)
+        input_path = input_file.name
+
+    try:
+        print("MRI uploaded:", filename, flush=True)
+        mask_path = segment_brain(input_path)
+        print("Segmentation complete:", mask_path, flush=True)
+
+        return {
+            "message": "Scan segmented successfully.",
+            "tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}",
+        }
+
+    except Exception as error:
+        print("SEGMENTATION ERROR:", error, flush=True)
+        return {"error": str(error)}
+
+    finally:
+        try:
+            os.remove(input_path)
+        except OSError:
+            pass
+@app.get("/tumor-mask/{filename}")
+def get_tumor_mask(filename: str):
+    path = os.path.join(
+        os.path.dirname(__file__),
+        "outputs",
+        filename
+    )
+    if not os.path.exists(path):
+        return {
+            "error": "Tumor mask not found."
+        }
+
+    return FileResponse(
+        path,
+        media_type="application/gzip",
+        filename=filename
+    )
+
+@app.post("/simulate")
+async def simulate_treatment(data: dict):
+    treatment = data.get("treatment")
+
+    if not treatment:
+        return {
+            "error": "No treatment was provided."
+        }
+
+    try:
+        print("Treatment selected:", treatment)
+
+        # Research the exact treatment selected by the user.
+        gemini_answer = research_topic(treatment)
+
+        print("Gemini response:", gemini_answer)
+
+        # Extract the first number from Gemini's response.
+        match = re.search(
+            r"[-+]?(?:\d*\.\d+|\d+\.?\d*)",
+            gemini_answer
+        )
+
+        if not match:
+            raise ValueError(
+                "Gemini did not return a numerical reduction value."
+            )
+
+        reduction = float(match.group())
+
+        # Gemini may return either:
+        # 0.38  -> 38%
+        # 38    -> 38%
+        if 0 <= reduction <= 1:
+            reduction_percent = reduction * 100
+        else:
+            reduction_percent = reduction
+
+        reduction_percent = max(
+            0,
+            min(100, reduction_percent)
+        )
+
+        # Create a new tumor mask with ONLY the tumor reduced.
+        mask_path = create_treatment_mask(
+            reduction_percent
+        )
+
+        return {
+            "treatment": treatment,
+            "reductionPercent": reduction_percent,
+            "summary": (
+                f"Research-based simulation for {treatment} "
+                f"predicts approximately "
+                f"{reduction_percent:.1f}% tumor volume reduction."
+            ),
+            "maskUrl": (
+                "/tumor-mask/"
+                + os.path.basename(mask_path)
+                + f"?v={int(reduction_percent * 1000)}"
+            )
+        }
+
+    except Exception as error:
+        print("TREATMENT SIMULATION ERROR:")
+        print(error)
+
+        return {
+            "error": str(error)
+        }

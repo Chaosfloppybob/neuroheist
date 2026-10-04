@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import "./TreatmentPanel.css";
 
-// ---- Config: change these to match your backend ----
-const API_URL = "http://localhost:8000/simulate"; // backend treatment endpoint
+const API_URL = "https://neuroheist-backend.onrender.com/simulate";
 const USE_MOCK = false; // set to false once the backend endpoint is running
 
 const TREATMENTS = [
@@ -89,12 +88,18 @@ export default function TreatmentPanel({ scanResult, onResult }) {
         const response = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ treatment: selected.id, tumor: scanResult }),
+          body: JSON.stringify({ treatment: selected.name }),
         });
         if (!response.ok) {
           throw new Error(`The server responded with status ${response.status}.`);
         }
         data = await response.json();
+        if(data.error){
+          throw new Error(data.error);
+        }
+        if (data.maskUrl && data.maskUrl.startsWith("/")) {
+          data.maskUrl = `https://neuroheist-backend.onrender.com${data.maskUrl}`;
+        }
       }
 
       setResult(data);

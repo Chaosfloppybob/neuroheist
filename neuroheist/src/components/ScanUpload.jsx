@@ -11,7 +11,7 @@ import { useRef, useState } from "react";
 */
 
 // ---- Config: change these to match your backend ----
-const API_URL = "http://localhost:8000/upload"; // backend upload endpoint
+const API_URL = "https://neuroheist-backend.onrender.com/upload"; // backend upload endpoint
 const FIELD_NAME = "file"; // must match the field name the backend reads
 const ACCEPTED_EXTENSIONS = [".nii", ".nii.gz"];
 const MAX_SIZE_MB = 200;
@@ -124,6 +124,12 @@ export default function ScanUpload({ onResult }) {
           throw new Error(`The server rejected the upload (status ${response.status}).`);
         }
         result = await response.json();
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        if (result.tumor_mask) {
+          result.maskUrl = `https://neuroheist-backend.onrender.com${result.tumor_mask}`;
+        }
       }
 
       setStatus("done");

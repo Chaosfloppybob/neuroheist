@@ -26,6 +26,11 @@ export default function BrainViewer({ file, maskUrl, brainOpacity = 1, tumorOpac
 
     readyRef.current = nv.attachToCanvas(canvasRef.current).then(() => {
       nv.setSliceType(nv.sliceTypeRender); // 3D view instead of 2D slices
+        // Hide the 2D slice planes in the 3D rendering.
+      nv.opts.show3Dcrosshair = false;
+      nv.opts.show3DRender = true;
+      nv.setSliceType(nv.sliceTypeRender);
+      nv.setRenderAzimuthElevation(0, 0);
     });
   }, []);
 
@@ -56,7 +61,7 @@ export default function BrainViewer({ file, maskUrl, brainOpacity = 1, tumorOpac
           url: maskUrl,
           name: maskUrl.split("/").pop().split("?")[0] || "tumor_mask.nii.gz",
           colormap: "red",
-          opacity: 0.85,
+          opacity: 0.8,
           cal_min: 0.5,
           cal_max: 1,
         });
