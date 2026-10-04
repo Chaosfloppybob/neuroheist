@@ -1,0 +1,84 @@
+
+.upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+
+  padding: 20px;
+  text-align: center;
+}
+
+.test {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.upload__dropzone{
+   border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 10px;
+}
+.upload__button{
+  background: #8b5cf6;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 18px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  box-sizing: border-box;
+  margin-top: 24px;
+}
+
+.upload__button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.upload__input{
+
+  text-align: center;
+
+}
+.glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+
+ 
+}
+*{
+  box-sizing: border-box
+}
+
+body{
+  font-family: 'Inter', sans-serif;
+  color: #fff;
+ min-height: 100vh;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(99, 102, 241, 0.45), transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(169, 85, 247, 0.81), transparent 45%),
+    #0b0b14;
+}
+
+.panel{
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  max-width: 1000px;
+  margin-top: 40px;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto
+}
+.app{
+  align-items: center;
+  justify-content: center;
+}

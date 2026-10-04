@@ -1,0 +1,24 @@
+/* NiiVue sizes the canvas to match this wrapper, so the wrapper must fill the card */
+.brain-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.brain-viewer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Loading / error message, centered over the canvas */
+.brain-viewer__status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  opacity: 0.7;
+  pointer-events: none;
+}
