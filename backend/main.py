@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 
 from fastapi import FastAPI, File, UploadFile
@@ -36,7 +37,7 @@ def create_treatment_mask(reduction_percent):
     )
 
     nii = nib.load(original_path)
-    mask = nii.get_fdata().astype(np.uint8)
+    mask = np.asarray(nii.dataobj).astype(np.uint8)
 
     tumor_coords = np.argwhere(mask > 0)
 
@@ -100,61 +101,39 @@ def root():
     return {
         "message": "NeuroHeist backend is running"
     }
-
 @app.post("/upload")
-async def upload_scan(
-    file: UploadFile = File(...)
-):
-    filename = file.filename.lower()
+def upload_scan(file: UploadFile = File(...)):
+    filename = (file.filename or "").lower()
 
-    if not (
-        filename.endswith(".nii")
-        or filename.endswith(".nii.gz")
-    ):
-        return {
-            "error": "Only .nii and .nii.gz files are supported."
-        }
+    if not (filename.endswith(".nii") or filename.endswith(".nii.gz")):
+        return {"error": "Only .nii and .nii.gz files are supported."}
 
     suffix = ".nii.gz" if filename.endswith(".nii.gz") else ".nii"
 
-    input_file = tempfile.NamedTemporaryFile(
-        suffix=suffix,
-        delete=False
-    )
-
-    input_path = input_file.name
+    # Copy the upload to disk in chunks instead of holding it all in RAM
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as input_file:
+        shutil.copyfileobj(file.file, input_file)
+        input_path = input_file.name
 
     try:
-        contents = await file.read()
-
-        input_file.write(contents)
-        input_file.close()
-
-        print("MRI uploaded:", filename)
-        print("Temporary file:", input_path)
-
+        print("MRI uploaded:", filename, flush=True)
         mask_path = segment_brain(input_path)
-
-        print("Segmentation complete:", mask_path)
+        print("Segmentation complete:", mask_path, flush=True)
 
         return {
             "message": "Scan segmented successfully.",
-            "tumor_mask": (
-                f"/tumor-mask/{os.path.basename(mask_path)}"
-            )
+            "tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}",
         }
 
     except Exception as error:
-        input_file.close()
+        print("SEGMENTATION ERROR:", error, flush=True)
+        return {"error": str(error)}
 
-        print("SEGMENTATION ERROR:")
-        print(error)
-
-        return {
-            "error": str(error)
-        }
-
-
+    finally:
+        try:
+            os.remove(input_path)
+        except OSError:
+            pass
 @app.get("/tumor-mask/{filename}")
 def get_tumor_mask(filename: str):
     path = os.path.join(

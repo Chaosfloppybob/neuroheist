@@ -1,190 +1,129 @@
+import gc
 import os
+import resource
 import urllib.request
 
 import nibabel as nib
 import numpy as np
 import torch
 
-from monai.inferers import SlidingWindowInferer
-from monai.transforms import NormalizeIntensity
-from monai.transforms import Resize
+from monai.transforms import NormalizeIntensity, Resize
 
 from model import create_model
 
 
-MODEL_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "brats_mri_segmentation.pth"
-)
-
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "brats_mri_segmentation.pth")
 MODEL_URL = os.getenv("MODEL_URL")
 
-
 model = None
-normalizer = NormalizeIntensity(
-    nonzero=True,
-    channel_wise=True
-)
+normalizer = NormalizeIntensity(nonzero=True, channel_wise=True)
 
-inferer = SlidingWindowInferer(
-    roi_size=(64, 128, 128),
-    sw_batch_size=1,
-    overlap=0.25
-)
+
+def log_mem(tag):
+    # Peak memory used by this process so far (Linux reports KB)
+    peak_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    print(f"[mem] {tag}: peak {peak_mb:.0f} MB", flush=True)
 
 
 def load_model():
     global model
-
     if model is not None:
         return model
 
-    print("LOADING SEGMENTATION MODEL")
+    print("LOADING SEGMENTATION MODEL", flush=True)
 
     if not os.path.exists(MODEL_PATH):
         if not MODEL_URL:
-            raise RuntimeError(
-                "Model file not found and MODEL_URL is not configured."
-            )
-
-        print("Downloading segmentation model...")
-
-        urllib.request.urlretrieve(
-            MODEL_URL,
-            MODEL_PATH
-        )
-
-        print("Model download complete.")
+            raise RuntimeError("Model file not found and MODEL_URL is not configured.")
+        print("Downloading segmentation model...", flush=True)
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
 
     device = torch.device("cpu")
+    net = create_model()
+    state_dict = torch.load(MODEL_PATH, map_location=device)
+    net.load_state_dict(state_dict)
+    del state_dict
 
-    model = create_model()
+    net.to(device)
+    net.eval()
+    model = net
 
-    state_dict = torch.load(
-        MODEL_PATH,
-        map_location=device
-    )
-
-    model.load_state_dict(state_dict)
-
-    model.to(device)
-    model.eval()
-
-    print("SEGMENTATION MODEL READY")
-
+    gc.collect()
+    print("SEGMENTATION MODEL READY", flush=True)
     return model
 
 
 def segment_brain(input_path):
-    print("STARTING SEGMENTATION")
-    model = load_model()
+    log_mem("start")
+    net = load_model()
+    log_mem("model loaded")
+
+    # nib.load only reads the header; no voxel data is in memory yet
     nii = nib.load(input_path)
+    print("MRI shape:", nii.shape, flush=True)
 
-    image = nii.get_fdata().astype(np.float32)
-    print("MRI LOADED")
-    print("MRI shape:", image.shape)
-    print("MRI memory MB:", image.nbytes / 1024 / 1024)
-    original_shape = image.shape[:3]
-    original_affine = nii.affine.copy()
-
-    print("Original MRI shape:", image.shape)
-
-    if image.ndim != 4:
+    if len(nii.shape) != 4 or nii.shape[-1] != 4:
         raise ValueError(
-            "Expected a 4D NIfTI containing 4 MRI modalities."
+            f"Expected a 4D NIfTI with 4 MRI channels, but received shape {nii.shape}."
         )
 
-    if image.shape[-1] != 4:
-        raise ValueError(
-            f"Expected 4 MRI channels, but received shape {image.shape}."
-        )
+    original_shape = tuple(int(s) for s in nii.shape[:3])
+    resize = Resize(spatial_size=(64, 128, 128), mode="trilinear")
 
-    # [D,H,W,C] -> [C,D,H,W]
-    image = np.transpose(image, (3, 2, 0, 1))
+    # Load, normalize and downsample ONE channel at a time.
+    # Normalization is per-channel, so the result is identical to before.
+    channels = []
+    for c in range(4):
+        ch = np.asarray(nii.dataobj[..., c], dtype=np.float32)  # [H,W,D]
+        ch = np.transpose(ch, (2, 0, 1))[None]                  # [1,D,H,W]
+        ch = normalizer(ch)
+        ch = np.asarray(resize(ch), dtype=np.float32)           # [1,64,128,128]
+        channels.append(ch)
+        del ch
+        gc.collect()
+        log_mem(f"channel {c} done")
 
-    image = normalizer(image)
+    image = np.concatenate(channels, axis=0)  # [4,64,128,128]
+    del channels
+    gc.collect()
 
-    # Downsample for much faster CPU inference
-    resize = Resize(
-        spatial_size=(64, 128, 128),
-        mode="trilinear"
-    )
+    tensor = torch.from_numpy(image).unsqueeze(0)  # [1,4,64,128,128]
+    print("Model input shape:", tuple(tensor.shape), flush=True)
 
-    image = resize(image)
+    with torch.inference_mode():
+        prediction = net(tensor)  # input already equals the ROI size
 
-    tensor = torch.from_numpy(
-        np.asarray(image, dtype=np.float32)
-    )
+    prediction_mask = (torch.sigmoid(prediction) > 0.5)[0].numpy()
+    del tensor, prediction, image
+    gc.collect()
+    log_mem("inference done")
 
-    tensor = tensor.unsqueeze(0)
-
-    print("Model input shape:", tensor.shape)
-    print("STARTING MODEL INFERENCE")
-    with torch.no_grad():
-
-        prediction = inferer(
-            inputs=tensor,
-            network=model
-        )
-
-    probabilities = torch.sigmoid(prediction)
-
-    prediction_mask = probabilities > 0.5
-
-    prediction_mask = prediction_mask[0].cpu().numpy()
-
-    # Convert 3 output channels to BraTS labels
-    tumor_mask = np.zeros(
-        prediction_mask.shape[1:],
-        dtype=np.uint8
-    )
-
-    # TC
-    tumor_mask[prediction_mask[0]] = 1
-
-    # WT
-    tumor_mask[prediction_mask[1]] = 2
-
-    # ET
-    tumor_mask[prediction_mask[2]] = 4
+    # 3 output channels -> BraTS labels
+    tumor_mask = np.zeros(prediction_mask.shape[1:], dtype=np.uint8)
+    tumor_mask[prediction_mask[0]] = 1  # TC
+    tumor_mask[prediction_mask[1]] = 2  # WT
+    tumor_mask[prediction_mask[2]] = 4  # ET
+    del prediction_mask
 
     # [D,H,W] -> [H,W,D]
-    tumor_mask = np.transpose(
-        tumor_mask,
-        (1, 2, 0)
-    )
-    mask_tensor = torch.from_numpy(tumor_mask).float()
+    tumor_mask = np.transpose(tumor_mask, (1, 2, 0))
+
+    mask_tensor = torch.from_numpy(np.ascontiguousarray(tumor_mask)).float()
     mask_tensor = mask_tensor.unsqueeze(0).unsqueeze(0)
-
     mask_tensor = torch.nn.functional.interpolate(
-        mask_tensor,
-        size=original_shape,
-        mode="nearest"
+        mask_tensor, size=original_shape, mode="nearest"
     )
-
     tumor_mask = mask_tensor[0, 0].numpy().astype(np.uint8)
-    mask_nii = nib.Nifti1Image(
-        tumor_mask,
-        np.eye(4)
-    )
+    del mask_tensor
+    gc.collect()
 
-    OUTPUT_DIR = os.path.join(
-        os.path.dirname(__file__),
-        "outputs"
-    )
+    output_dir = os.path.join(os.path.dirname(__file__), "outputs")
+    os.makedirs(output_dir, exist_ok=True)
+    mask_path = os.path.join(output_dir, "tumor_mask.nii.gz")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Same as before (np.eye(4)), so your viewer behaves the same.
+    nib.save(nib.Nifti1Image(tumor_mask, np.eye(4)), mask_path)
 
-    mask_path = os.path.join(
-        OUTPUT_DIR,
-        "tumor_mask.nii.gz"
-    )
-
-    nib.save(
-        mask_nii,
-        mask_path
-    )
-
-    print("Tumor mask saved:", mask_path)
-
+    log_mem("saved")
+    print("Tumor mask saved:", mask_path, flush=True)
     return mask_path
