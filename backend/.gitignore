@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+
+*.pth
+
+*.nii
+*.nii.gz
+
+outputs/
+
+.env
