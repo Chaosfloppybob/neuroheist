@@ -1,6 +1,7 @@
+import BrainViewer from "./BrainViewer";
 import "./ResultsView.css";
 
-export default function ResultsView({ result, onNewScan }) {
+export default function ResultsView({ result, file, onNewScan }) {
   return (
     <div className="results">
       <header className="results__header">
@@ -20,7 +21,7 @@ export default function ResultsView({ result, onNewScan }) {
 
         {/* Center column: the 3D viewer */}
         <div className="glass results__viewer">
-          <p>3D viewer goes here</p>
+          <BrainViewer file={file} />
         </div>
 
         {/* Right column: stats on top, chat below */}

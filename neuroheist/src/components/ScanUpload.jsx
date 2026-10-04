@@ -119,7 +119,7 @@ export default function ScanUpload({ onResult }) {
       }
 
       setStatus("done");
-      onResult?.(result);
+      onResult?.(result, file);
     } catch (err) {
       setStatus("error");
       // fetch throws a TypeError when it can't reach the server at all (often CORS)
