@@ -5,7 +5,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-# from inference import segment_brain
+from inference import segment_brain
 import re
 import nibabel as nib
 import numpy as np
@@ -104,7 +104,6 @@ def root():
 async def upload_scan(
     file: UploadFile = File(...)
 ):
-    # Make sure the uploaded file is NIfTI.
     filename = file.filename.lower()
 
     if not (
@@ -115,7 +114,6 @@ async def upload_scan(
             "error": "Only .nii and .nii.gz files are supported."
         }
 
-    # Save uploaded file temporarily.
     suffix = ".nii.gz" if filename.endswith(".nii.gz") else ".nii"
 
     input_file = tempfile.NamedTemporaryFile(
@@ -131,15 +129,19 @@ async def upload_scan(
         input_file.write(contents)
         input_file.close()
 
-        # Run the actual AI segmentation.
-        # mask_path = segment_braininput_path
-        return{
-            "message": "Upload reached FastAPI successfully"
+        print("MRI uploaded:", filename)
+        print("Temporary file:", input_path)
+
+        mask_path = segment_brain(input_path)
+
+        print("Segmentation complete:", mask_path)
+
+        return {
+            "message": "Scan segmented successfully.",
+            "tumor_mask": (
+                f"/tumor-mask/{os.path.basename(mask_path)}"
+            )
         }
-        ##return {
-            ##"message": "Scan segmented successfully.",
-            ##"tumor_mask": f"/tumor-mask/{os.path.basename(mask_path)}"
-        ##}
 
     except Exception as error:
         input_file.close()

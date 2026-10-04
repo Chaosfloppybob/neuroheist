@@ -1,5 +1,6 @@
 import os
 import urllib.request
+
 import nibabel as nib
 import numpy as np
 import torch
@@ -18,38 +19,13 @@ MODEL_PATH = os.path.join(
 
 MODEL_URL = os.getenv("MODEL_URL")
 
-if not os.path.exists(MODEL_PATH):
-    if not MODEL_URL:
-        raise RuntimeError(
-            "Model file not found and MODEL_URL is not configured."
-        )
 
-    print("Downloading segmentation model...")
-    urllib.request.urlretrieve(
-        MODEL_URL,
-        MODEL_PATH
-    )
-    print("Model download complete.")
-
-device = torch.device("cpu")
-
-model = create_model()
-
-state_dict = torch.load(
-    MODEL_PATH,
-    map_location=device
-)
-
-model.load_state_dict(state_dict)
-model.to(device)
-model.eval()
-
+model = None
 normalizer = NormalizeIntensity(
     nonzero=True,
     channel_wise=True
 )
 
-# Much smaller inference window
 inferer = SlidingWindowInferer(
     roi_size=(64, 128, 128),
     sw_batch_size=1,
@@ -57,9 +33,51 @@ inferer = SlidingWindowInferer(
 )
 
 
+def load_model():
+    global model
+
+    if model is not None:
+        return model
+
+    print("LOADING SEGMENTATION MODEL")
+
+    if not os.path.exists(MODEL_PATH):
+        if not MODEL_URL:
+            raise RuntimeError(
+                "Model file not found and MODEL_URL is not configured."
+            )
+
+        print("Downloading segmentation model...")
+
+        urllib.request.urlretrieve(
+            MODEL_URL,
+            MODEL_PATH
+        )
+
+        print("Model download complete.")
+
+    device = torch.device("cpu")
+
+    model = create_model()
+
+    state_dict = torch.load(
+        MODEL_PATH,
+        map_location=device
+    )
+
+    model.load_state_dict(state_dict)
+
+    model.to(device)
+    model.eval()
+
+    print("SEGMENTATION MODEL READY")
+
+    return model
+
+
 def segment_brain(input_path):
     print("STARTING SEGMENTATION")
-
+    model = load_model()
     nii = nib.load(input_path)
 
     image = nii.get_fdata().astype(np.float32)
