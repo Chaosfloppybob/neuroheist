@@ -47,6 +47,8 @@ def segment_brain(input_path):
     nii = nib.load(input_path)
 
     image = nii.get_fdata().astype(np.float32)
+    original_shape = image.shape[:3]
+    original_affine = nii.affine.copy()
 
     print("Original MRI shape:", image.shape)
 
@@ -114,7 +116,16 @@ def segment_brain(input_path):
         tumor_mask,
         (1, 2, 0)
     )
+    mask_tensor = torch.from_numpy(tumor_mask).float()
+    mask_tensor = mask_tensor.unsqueeze(0).unsqueeze(0)
 
+    mask_tensor = torch.nn.functional.interpolate(
+        mask_tensor,
+        size=original_shape,
+        mode="nearest"
+    )
+
+    tumor_mask = mask_tensor[0, 0].numpy().astype(np.uint8)
     mask_nii = nib.Nifti1Image(
         tumor_mask,
         np.eye(4)

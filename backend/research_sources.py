@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from tavily import TavilyClient
-from backend.summarizer import summarize
-from backend.gemini_call import ask_gemini
+from summarizer import summarize
+from gemini_call import ask_gemini
 import os
 
 load_dotenv()
@@ -55,6 +55,3 @@ def research_topic(treatment: str):
     answer = ask_gemini(treatment, summary)
 
     return answer
-
-
-print(research_topic("EBRT"))

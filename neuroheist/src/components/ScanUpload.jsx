@@ -15,7 +15,7 @@ const API_URL = "http://localhost:8000/upload"; // backend upload endpoint
 const FIELD_NAME = "file"; // must match the field name the backend reads
 const ACCEPTED_EXTENSIONS = [".nii", ".nii.gz"];
 const MAX_SIZE_MB = 200;
-const USE_MOCK = true; // set to false once the backend endpoint is running
+const USE_MOCK = false; // set to false once the backend endpoint is running
 
 function hasValidExtension(name) {
   const lower = name.toLowerCase();
@@ -124,6 +124,10 @@ export default function ScanUpload({ onResult }) {
           throw new Error(`The server rejected the upload (status ${response.status}).`);
         }
         result = await response.json();
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        result.maskUrl = `http://localhost:8000${result.tumor_mask}`;
       }
 
       setStatus("done");
