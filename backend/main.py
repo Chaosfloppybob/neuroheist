@@ -20,7 +20,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://neuroheist.select"
+        "https://neuroheist-git-main-steawins-projects.vercel.app/"
     ],
     allow_credentials=True,
     allow_methods=["*"],
