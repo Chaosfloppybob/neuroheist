@@ -58,10 +58,14 @@ inferer = SlidingWindowInferer(
 
 
 def segment_brain(input_path):
+    print("STARTING SEGMENTATION")
 
     nii = nib.load(input_path)
 
     image = nii.get_fdata().astype(np.float32)
+    print("MRI LOADED")
+    print("MRI shape:", image.shape)
+    print("MRI memory MB:", image.nbytes / 1024 / 1024)
     original_shape = image.shape[:3]
     original_affine = nii.affine.copy()
 
@@ -97,7 +101,7 @@ def segment_brain(input_path):
     tensor = tensor.unsqueeze(0)
 
     print("Model input shape:", tensor.shape)
-
+    print("STARTING MODEL INFERENCE")
     with torch.no_grad():
 
         prediction = inferer(
