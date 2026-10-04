@@ -21,7 +21,6 @@
 }
 
 .results__controls,
-.results__viewer,
 .results__stats,
 .results__chat {
   padding: 24px;
@@ -32,6 +31,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden; 
 }
 
 /* Stacks stats and chat vertically in the right column */
@@ -43,7 +43,8 @@
 }
 
 .results__stats {
-  flex: 1;
+  flex: 0 0 auto;
+  max-height: 30%;
   overflow: auto;
 }
 
@@ -67,4 +68,13 @@
   .results__viewer {
     min-height: 400px;
   }
+}
+
+.results h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
 }

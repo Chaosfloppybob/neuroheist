@@ -31,7 +31,15 @@ function formatSize(bytes) {
 // Pretends to be the backend so you can build the flow before it's ready
 function fakeUpload() {
   return new Promise((resolve) =>
-    setTimeout(() => resolve({ message: "Mock result", regions: [] }), 2000)
+    setTimeout(
+      () =>
+        resolve({
+          message: "Mock result",
+          regions: [],
+          maskUrl: "/fake_tumor_mask.nii.gz", 
+        }),
+      2000
+    )
   );
 }
 
